@@ -18,6 +18,10 @@
   .voice-btn.recording { background: #dc3545; border-color: #dc3545; color: #fff; }
   .metric { background: #f8faf8; border: 1px solid #e5eee6; border-radius: 8px; padding: 12px; }
   .metric strong { display: block; font-size: 20px; color: #155d35; }
+  .ranked-crop { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px solid #e5eee6; border-radius:8px; background:#fbfdfb; margin-bottom:8px; }
+  .ranked-crop:first-child { background:#e8f5e9; border-color:#9bd39f; }
+  .ranked-crop .crop-medal { width:30px; height:30px; border-radius:50%; background:#1a6b3c; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
+  .weather-chip { display:inline-flex; align-items:center; gap:5px; border:1px solid #d7e6da; border-radius:999px; padding:5px 9px; background:#fff; font-size:12px; color:#155d35; margin:0 4px 6px 0; }
   .simple-mode .advanced-only { display: none !important; }
   .simple-mode .form-label, .simple-mode .btn, .simple-mode .form-control, .simple-mode .form-select { font-size: 17px; }
   .simple-mode .crop-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
@@ -39,8 +43,9 @@
 <div class="{{ 'simple-mode' if education_level == 'illiterate' else '' }}">
   <div class="soft-band p-3 mb-3 d-flex flex-wrap gap-2 align-items-center justify-content-between">
     <div>
-      <div style="font-size:13px;color:#356044;">{{ 'Picture and voice mode' if education_level == 'illiterate' else 'Scientific advisory mode' }}</div>
+      <div style="font-size:13px;color:#356044;">{{ education_label }}</div>
       <h2 class="m-0" style="font-size:24px;color:#134f2d;">Choose crop, land, weather and get guidance</h2>
+      <div style="font-size:13px;color:#4b5563;">Voice input, map selection and live weather are available for this location.</div>
     </div>
     <div class="d-flex gap-2">
       <select id="languageSelect" class="form-select form-select-sm" style="width:130px;">
@@ -143,6 +148,7 @@
       <div class="d-flex gap-2 mt-4">
         <button type="submit" class="btn btn-primary px-4" id="submitBtn"><i class="bi bi-lightning-charge me-2"></i>Predict and advise</button>
         <button type="button" class="btn btn-outline-secondary" id="weatherBtn"><i class="bi bi-cloud-sun me-1"></i>Fetch weather</button>
+        <button type="button" class="btn btn-outline-success advanced-only" id="bestCropBtn"><i class="bi bi-stars me-1"></i>Best crop</button>
       </div>
     </form>
 
@@ -156,6 +162,34 @@
           </div>
           <span class="badge text-bg-success">{{ result.confidence }}% confidence</span>
         </div>
+        {% if best_crops %}
+        <div class="mb-3">
+          <h6><i class="bi bi-award me-1"></i>Best crops for this land</h6>
+          {% for item in best_crops %}
+          <div class="ranked-crop">
+            <div class="d-flex align-items-center gap-2">
+              <span class="crop-medal">{{ loop.index }}</span>
+              <div>
+                <strong>{{ item.crop }}</strong>
+                <div class="small text-muted">{{ "{:,.0f}".format(item.yield_per_hectare) }} kg/ha</div>
+              </div>
+            </div>
+            <div class="text-end">
+              <strong style="color:#155d35;">{{ "{:,.0f}".format(item.total_yield) }} kg</strong>
+              <div class="small text-muted">{{ item.confidence }}%</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if suitable_crops %}
+        <div class="mb-3">
+          <h6><i class="bi bi-cloud-sun me-1"></i>Weather fit now</h6>
+          {% for item in suitable_crops %}
+          <span class="weather-chip">{{ item.crop }} {{ (item.suitability * 100)|round|int }}%</span>
+          {% endfor %}
+        </div>
+        {% endif %}
         <div class="row g-2">
           <div class="col-6"><div class="metric"><small>Yield / hectare</small><strong>{{ "{:,.0f}".format(result.yield_per_hectare) }}</strong><span>kg</span></div></div>
           <div class="col-6"><div class="metric"><small>Total yield</small><strong>{{ "{:,.0f}".format(result.total_yield) }}</strong><span>kg</span></div></div>
@@ -184,6 +218,11 @@
           <h5 class="m-0"><i class="bi bi-robot me-1"></i>Agri Chat</h5>
           <button type="button" class="btn btn-outline-primary btn-sm voice-btn" id="voiceChatBtn" title="Speak question"><i class="bi bi-mic"></i></button>
         </div>
+        {% if not chatbot_available %}
+        <div class="alert alert-warning py-2 px-3 mb-2 small mb-0">
+          Cerebras is not configured yet. Add <strong>CEREBRAS_API_KEY</strong> in <code>.env</code> to enable live chatbot replies.
+        </div>
+        {% endif %}
         <div id="chatbot-container"></div>
       </div>
     </aside>
@@ -215,8 +254,23 @@ function setFarmLocation(lat, lon) {
   marker = L.marker([lat, lon], {draggable: true}).addTo(map);
   marker.on('dragend', e => setFarmLocation(e.target.getLatLng().lat, e.target.getLatLng().lng));
   map.setView([lat, lon], 12);
+  autoFetchWeather();
 }
 map.on('click', e => setFarmLocation(e.latlng.lat, e.latlng.lng));
+
+async function autoFetchWeather() {
+  if (!document.getElementById('useWeather').checked) return;
+  const lat = document.getElementById('latitude').value;
+  const lon = document.getElementById('longitude').value;
+  if (!lat || !lon) return;
+  const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+  const data = await response.json();
+  if (data.status === 'success') {
+    document.getElementById('rainfallInput').value = data.weather.rainfall || 0;
+    document.getElementById('tempInput').value = data.weather.temperature || 0;
+    document.getElementById('humidInput').value = data.weather.humidity || 0;
+  }
+}
 
 document.getElementById('searchLocationBtn').addEventListener('click', async () => {
   const city = document.getElementById('locationInput').value.trim();
@@ -227,19 +281,31 @@ document.getElementById('searchLocationBtn').addEventListener('click', async () 
     body: JSON.stringify({city})
   });
   const data = await response.json();
-  if (data.status === 'success') setFarmLocation(data.latitude, data.longitude);
+  if (data.status === 'success') {
+    setFarmLocation(data.latitude, data.longitude);
+    document.getElementById('locationInput').value = data.display_name || city;
+  }
 });
 
 document.getElementById('weatherBtn').addEventListener('click', async () => {
-  const lat = document.getElementById('latitude').value;
-  const lon = document.getElementById('longitude').value;
-  if (!lat || !lon) return;
-  const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+  await autoFetchWeather();
+});
+
+document.getElementById('bestCropBtn')?.addEventListener('click', async () => {
+  const form = document.getElementById('predictForm');
+  const payload = Object.fromEntries(new FormData(form).entries());
+  payload.use_weather = document.getElementById('useWeather').checked;
+  const response = await fetch('/api/best-crops', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
   const data = await response.json();
-  if (data.status === 'success') {
-    document.getElementById('rainfallInput').value = data.weather.rainfall || 0;
-    document.getElementById('tempInput').value = data.weather.temperature || 0;
-    document.getElementById('humidInput').value = data.weather.humidity || 0;
+  if (data.status === 'success' && data.best_crops.length) {
+    const best = data.best_crops[0].crop;
+    cropSelect.value = best;
+    document.querySelectorAll('.crop-tile').forEach(t => t.classList.toggle('active', t.dataset.crop === best));
+    alert(`Best crop suggestion: ${best}`);
   }
 });
 
@@ -264,6 +330,25 @@ function speakCurrentResult() {
   const lang = {en: 'en-US', kn: 'kn-IN', hi: 'hi-IN'}[document.getElementById('languageSelect').value] || 'en-US';
   speakText(el.innerText, lang);
 }
+
+document.getElementById('languageSelect').addEventListener('change', async event => {
+  const language = event.target.value;
+  document.documentElement.lang = language;
+  await fetch('/api/user/preferences', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({language, education_level: '{{ education_level }}'})
+  });
+  if (typeof voiceInput !== 'undefined' && voiceInput.setLanguage) {
+    voiceInput.setLanguage(language);
+  }
+  if (typeof globalChatbot !== 'undefined' && globalChatbot) {
+    globalChatbot.renderSuggestions();
+  }
+});
+
+initializeChatbot('chatbot-container', {enableSound: false, assistantAvailable: {{ 'true' if chatbot_available else 'false' }}});
+document.documentElement.lang = document.getElementById('languageSelect').value;
 
 document.getElementById('predictForm').addEventListener('submit', () => {
   document.getElementById('submitBtn').disabled = true;

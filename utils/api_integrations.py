@@ -9,7 +9,7 @@ import os
 from config import Config
 
 # Cerebras API Configuration
-CEREBRAS_API_KEY = os.environ.get('CEREBRAS_API_KEY', '')
+CEREBRAS_API_KEY = Config.CEREBRAS_API_KEY
 CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 
 class CerebrasAIClient:
@@ -17,7 +17,7 @@ class CerebrasAIClient:
     
     def __init__(self, api_key=None):
         self.api_key = api_key or CEREBRAS_API_KEY
-        self.model = "llama-3.1-8b"
+        self.model = os.environ.get('CEREBRAS_MODEL', 'gpt-oss-120b')
         self.base_url = "https://api.cerebras.ai/v1"
         self.conversation_history = []
     
@@ -25,7 +25,7 @@ class CerebrasAIClient:
         """Check if API key is configured"""
         return bool(self.api_key)
     
-    def ask_agricultural_question(self, question, language='en'):
+    def ask_agricultural_question(self, question, language='en', education_level='literate'):
         """
         Ask agriculture-related question to Cerebras AI
         Returns structured response with answer and recommendations
@@ -34,12 +34,12 @@ class CerebrasAIClient:
             return {
                 'status': 'error',
                 'message': 'Cerebras API not configured. Please add API key to .env file',
-                'answer': 'I am currently offline. Please try again later.'
+                'answer': self._get_fallback_answer(language, question, education_level)
             }
         
         try:
             # Prepare system prompt for agricultural context
-            system_prompt = self._get_agricultural_system_prompt(language)
+            system_prompt = self._get_agricultural_system_prompt(language, education_level)
             
             # Build messages
             messages = [
@@ -62,8 +62,12 @@ class CerebrasAIClient:
                 },
                 timeout=30
             )
-            
-            response.raise_for_status()
+
+            if not response.ok:
+                raise requests.exceptions.RequestException(
+                    f"HTTP {response.status_code}: {response.text.strip() or response.reason}"
+                )
+
             result = response.json()
             
             answer = result['choices'][0]['message']['content']
@@ -79,7 +83,7 @@ class CerebrasAIClient:
             return {
                 'status': 'success',
                 'question': question,
-                'answer': answer,
+                'answer': self._post_process_answer(answer, language, education_level),
                 'timestamp': datetime.now().isoformat()
             }
         
@@ -88,14 +92,14 @@ class CerebrasAIClient:
                 'status': 'error',
                 'message': f'API Error: {str(e)}',
                 'question': question,
-                'answer': 'Sorry, I could not process your question at this time.'
+                'answer': self._get_fallback_answer(language, question, education_level)
             }
         except Exception as e:
             return {
                 'status': 'error',
                 'message': f'Error: {str(e)}',
                 'question': question,
-                'answer': 'An unexpected error occurred.'
+                'answer': self._get_fallback_answer(language, question, education_level)
             }
     
     def get_crop_information(self, crop_name, language='en'):
@@ -110,7 +114,8 @@ class CerebrasAIClient:
         7. Harvesting time and yield expectations
         8. Storage and post-harvest handling
         
-        Keep response concise and practical for farmers."""
+        Keep response concise and practical for farmers.
+        If language is Kannada or Hindi, answer fully in that language."""
         
         return self.ask_agricultural_question(prompt, language)
     
@@ -122,7 +127,8 @@ class CerebrasAIClient:
         2. Pest/disease risks
         3. Irrigation recommendations
         4. Harvesting implications
-        Keep it practical and actionable."""
+        Keep it practical and actionable.
+        If language is Kannada or Hindi, answer fully in that language."""
         
         return self.ask_agricultural_question(prompt, language)
     
@@ -148,33 +154,82 @@ class CerebrasAIClient:
         2. Soil conditions
         3. Market demand
         4. Cost-effectiveness
-        5. Sustainable practices"""
+        5. Sustainable practices
+        If language is Kannada or Hindi, answer fully in that language."""
         
         return self.ask_agricultural_question(prompt, language)
     
-    def _get_agricultural_system_prompt(self, language='en'):
+    def _get_agricultural_system_prompt(self, language='en', education_level='literate'):
         """Get system prompt for agricultural context"""
+        style_guidance = """
+        Answer with this style:
+        - Use plain words and short sentences.
+        - Prefer 3 to 6 bullet points or numbered steps.
+        - Give direct farming advice only.
+        - If the user asks about rain, weather, fertilizer, pesticide, irrigation, crops, soil, or yield, keep the answer practical.
+        - Do not add unrelated disclaimers.
+        """
+
+        simple_guidance = """
+        Farmer learning mode: simple picture mode.
+        - Use very simple language.
+        - Keep each point short.
+        - Start with the most important action.
+        - Avoid scientific jargon unless needed.
+        - If you can, use examples from Indian farming.
+        """
+
+        advanced_guidance = """
+        Farmer learning mode: studied/science mode.
+        - Include scientific reasoning when helpful.
+        - Mention soil, climate, nutrient and irrigation logic.
+        - Keep the answer structured and easy to scan.
+        """
+
         prompts = {
-            'en': """You are an experienced agricultural extension officer helping farmers.
-            Provide practical, evidence-based advice on:
-            - Crop selection and cultivation
-            - Pest and disease management
-            - Soil and water management
-            - Fertilizer and nutrient management
-            - Yield improvement techniques
-            - Weather-based farming decisions
+            'en': f"""You are an experienced agricultural extension officer helping farmers.
+            Provide practical, evidence-based advice on crop selection, pests, diseases, soil, water, fertilizer, irrigation, and weather decisions.
+            {simple_guidance if education_level == 'illiterate' else advanced_guidance}
+            {style_guidance}
+            Always answer in English.""",
             
-            Keep responses concise, clear, and actionable for farmers with varying education levels.
-            Use local knowledge and proven practices.""",
+            'kn': f"""ನೀವು ಅನುಭವೀ ಕೃಷಿ ಸಲಹೆಗಾರರು.
+            ಬೆಳೆ ಆಯ್ಕೆ, ಕೀಟಗಳು, ರೋಗಗಳು, ಮಣ್ಣು, ನೀರು, ಗೊಬ್ಬರ, ನೀರಾವರಿ ಮತ್ತು ಹವಾಮಾನ ಕುರಿತು ರೈತನಿಗೆ ಸರಳವಾಗಿ, ನೇರವಾಗಿ ಮತ್ತು ಉಪಯೋಗವಾಗುವಂತೆ ಸಲಹೆ ನೀಡಿ.
+            {simple_guidance if education_level == 'illiterate' else advanced_guidance}
+            {style_guidance}
+            Always answer in Kannada only. Use simple Kannada words. Do not switch to English unless the user asks for English.""",
             
-            'kn': """You are an experienced agricultural extension officer. Provide practical advice in Kannada on farming topics.
-            Respond in Kannada language.""",
-            
-            'hi': """You are an experienced agricultural extension officer. Provide practical advice in Hindi on farming topics.
-            Respond in Hindi language."""
+            'hi': f"""आप एक अनुभवी कृषि सलाहकार हैं।
+            फसल चयन, कीट, रोग, मिट्टी, पानी, उर्वरक, सिंचाई और मौसम के बारे में किसान को सरल, सीधे और उपयोगी सुझाव दें।
+            {simple_guidance if education_level == 'illiterate' else advanced_guidance}
+            {style_guidance}
+            हमेशा हिंदी में उत्तर दें। सरल हिंदी का उपयोग करें।"""
         }
         
         return prompts.get(language, prompts['en'])
+
+    def _get_fallback_answer(self, language, question, education_level):
+        defaults = {
+            'en': 'I am offline right now. Please try again later.',
+            'kn': 'ನಾನು ಈಗ ಆಫ್‌ಲೈನ್ ಆಗಿದ್ದೇನೆ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+            'hi': 'मैं अभी ऑफलाइन हूं। कृपया थोड़ी देर बाद फिर से कोशिश करें।'
+        }
+        base = defaults.get(language, defaults['en'])
+        if education_level == 'illiterate':
+            return base + ' Use the crop buttons, map, or microphone for simple input.'
+        return base + ' You can ask about crop, rain, fertilizer, pesticide, or irrigation.'
+
+    def _post_process_answer(self, answer, language, education_level):
+        answer = (answer or '').strip()
+        if not answer:
+            return self._get_fallback_answer(language, '', education_level)
+
+        # Keep answers short and farmer-friendly if the model drifts too long.
+        lines = [line.strip() for line in answer.splitlines() if line.strip()]
+        if len(lines) > 12:
+            lines = lines[:12]
+            lines.append('...')
+        return '\n'.join(lines)
     
     def get_conversation_history(self):
         """Get conversation history"""

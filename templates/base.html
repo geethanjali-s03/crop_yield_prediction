@@ -9,19 +9,37 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --primary: #1a6b3c;
-    --primary-dark: #134f2d;
-    --primary-light: #e8f5e9;
-    --accent: #f9a825;
-    --accent-dark: #e65100;
+    --primary: #1f7a4a;
+    --primary-dark: #155434;
+    --primary-light: #eaf8ef;
+    --accent: #f6b93b;
+    --accent-dark: #d9822b;
     --sidebar-w: 250px;
     --text-muted: #6b7280;
     --border: #e5e7eb;
-    --card-shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    --card-shadow: 0 12px 30px rgba(16, 58, 35, .08), 0 2px 6px rgba(16, 58, 35, .06);
   }
   * { box-sizing: border-box; }
-  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f3f7f4; margin: 0; color: #1f2937; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(31, 122, 74, .12), transparent 30%),
+      radial-gradient(circle at top right, rgba(246, 185, 59, .12), transparent 26%),
+      linear-gradient(180deg, #f7fbf7 0%, #eef6f0 100%);
+    margin: 0;
+    color: #1f2937;
+  }
   h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(31,122,74,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(31,122,74,.03) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(180deg, rgba(0,0,0,.35), transparent 70%);
+  }
 
   /* Sidebar */
   .sidebar {
@@ -54,6 +72,8 @@
 
   /* Cards */
   .card { border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: var(--card-shadow); }
+  .card { transition: transform .2s ease, box-shadow .2s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(16, 58, 35, .12); }
   .card-header { background: #fff; border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0 !important; padding: 14px 20px; display: flex; align-items: center; gap: 8px; }
   .card-title { font-size: 15px; font-weight: 600; margin: 0; }
   .stat-card { border-radius: 12px; padding: 18px 20px; color: #fff; position: relative; overflow: hidden; }
@@ -105,7 +125,7 @@
 </style>
 {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body {% if session.username %}data-language="{{ session.get('language', 'en') }}" data-education-level="{{ session.get('education_level', 'literate') }}"{% endif %}>
 
 {% if session.username %}
 <aside class="sidebar" id="sidebar">
@@ -134,6 +154,7 @@
   <div class="sidebar-footer">
     <div class="d-flex align-items-center justify-content-between">
       <span><i class="bi bi-person-circle me-1"></i>{{ session.username }}</span>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
       <a href="{{ url_for('logout') }}" class="text-danger text-decoration-none" title="Logout"><i class="bi bi-box-arrow-right"></i></a>
     </div>
     <div class="mt-1">v1.0.0 — CropYield AI</div>

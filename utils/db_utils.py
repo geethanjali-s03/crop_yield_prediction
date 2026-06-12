@@ -23,6 +23,24 @@ def _parse_dt(value):
         return None
 
 
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if hasattr(value, 'item') and not isinstance(value, (str, bytes)):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    if hasattr(value, 'isoformat') and not isinstance(value, str):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    return value
+
+
 def get_db():
     try:
         client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=1200)
@@ -192,8 +210,8 @@ def save_prediction(username, input_data, result):
     db = get_db()
     payload = {
         'username': username,
-        'input': input_data,
-        'result': result,
+        'input': _json_safe(input_data),
+        'result': _json_safe(result),
         'timestamp': _now(),
     }
     if db is not None:
@@ -202,7 +220,7 @@ def save_prediction(username, input_data, result):
     with _sqlite_conn() as conn:
         conn.execute(
             'INSERT INTO predictions (username, input_json, result_json, timestamp) VALUES (?, ?, ?, ?)',
-            (username, json.dumps(input_data), json.dumps(result), payload['timestamp'].isoformat())
+            (username, json.dumps(payload['input']), json.dumps(payload['result']), payload['timestamp'].isoformat())
         )
         conn.commit()
 
@@ -277,14 +295,14 @@ def get_crop_data(limit=100):
 
 def save_report(username, report_data):
     db = get_db()
-    payload = {'username': username, 'data': report_data, 'created_at': _now()}
+    payload = {'username': username, 'data': _json_safe(report_data), 'created_at': _now()}
     if db is not None:
         db.reports.insert_one(payload)
         return
     with _sqlite_conn() as conn:
         conn.execute(
             'INSERT INTO reports (username, data_json, created_at) VALUES (?, ?, ?)',
-            (username, json.dumps(report_data), payload['created_at'].isoformat())
+            (username, json.dumps(payload['data']), payload['created_at'].isoformat())
         )
         conn.commit()
 

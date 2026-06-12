@@ -10,6 +10,16 @@
   <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#logsTab"><i class="bi bi-terminal me-1"></i>System Logs</button></li>
 </ul>
 
+<div class="card mb-3" style="background:linear-gradient(135deg, #f3fbf4, #fffdf0);border-color:#d7ebdd;">
+  <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <div style="font-size:12px;color:#356044;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Administration</div>
+      <div style="font-size:14px;color:#374151;">Review users, prediction logs, model accuracy and stored dataset samples from one place.</div>
+    </div>
+    <span class="badge" style="background:#e8f5e9;color:#166534;">{{ users|length }} registered users</span>
+  </div>
+</div>
+
 <div class="tab-content">
   <!-- Users Tab -->
   <div class="tab-pane fade show active" id="usersTab">
@@ -69,6 +79,29 @@
           </div>
         </div>
       </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Model Prediction Accuracy</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+              <thead><tr><th>Model</th><th>Accuracy</th><th>R2</th><th>MAE</th><th>RMSE</th></tr></thead>
+              <tbody>
+              {% for name, row in (model_meta.results or {}).items() %}
+              <tr>
+                <td style="font-weight:600;">{{ name }} {% if model_meta.best_model == name %}<span class="badge text-bg-success ms-1">Best</span>{% endif %}</td>
+                <td style="color:#155d35;font-weight:700;">{{ row.Accuracy }}%</td>
+                <td>{{ row.R2 }}</td>
+                <td>{{ row.MAE }}</td>
+                <td>{{ row.RMSE }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5" class="text-center text-muted py-4">Model not trained yet</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -111,7 +144,7 @@
           {% for log in logs %}
           <tr>
             <td>
-              <span class="badge" style="background:{{ '#dcfce7' if log.type=='LOGIN' else '#dbeafe' if log.type=='PREDICT' else '#fef9c3' if log.type=='TRAIN' else '#f3f4f6' }};color:{{ '#166534' if log.type=='LOGIN' else '#1e40af' if log.type=='PREDICTION' else '#713f12' if log.type=='TRAIN' else '#374151' }};">
+              <span class="badge" style="background:{{ '#dcfce7' if log.type=='LOGIN' else '#dbeafe' if log.type=='PREDICTION' else '#fef9c3' if log.type=='TRAIN' else '#f3f4f6' }};color:{{ '#166534' if log.type=='LOGIN' else '#1e40af' if log.type=='PREDICTION' else '#713f12' if log.type=='TRAIN' else '#374151' }};">
                 {{ log.type }}
               </span>
             </td>

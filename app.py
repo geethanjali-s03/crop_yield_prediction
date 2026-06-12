@@ -14,7 +14,7 @@ from config import Config, config
 
 # Utilities
 from utils.dataset_generator import generate_crop_dataset
-from models.ml_pipeline import train_models, predict_yield
+from models.ml_pipeline import train_models, predict_yield, recommend_best_crops
 from utils.db_utils import (create_user, get_user, get_all_users, save_prediction,
                              get_predictions, get_prediction_stats, store_dataset_sample,
                              get_crop_data, save_report, get_reports, log_event, get_logs, get_db,
@@ -31,6 +31,24 @@ from utils.language_handler import (get_translation, get_supported_languages,
                                      get_language_name, get_all_translations)
 from utils.api_integrations import cerebras_client, farmer_analyzer
 
+
+def make_json_safe(value):
+    if isinstance(value, dict):
+        return {key: make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [make_json_safe(item) for item in value]
+    if hasattr(value, 'item') and not isinstance(value, (str, bytes)):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    if hasattr(value, 'isoformat') and not isinstance(value, str):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    return value
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'cropyield_secret_2024')
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_UPLOAD_SIZE
@@ -44,6 +62,39 @@ SOIL_LIST = ['Clay','Sandy','Loamy','Silty','Chalky','Peaty']
 SEASON_LIST = ['Kharif','Rabi','Zaid','Summer','Winter']
 WEATHER_LIST = ['Sunny','Rainy','Cloudy','Humid','Dry']
 STATE_LIST = ['Punjab','Haryana','UP','MP','Maharashtra','Karnataka','AP','Gujarat','Rajasthan','Bihar']
+
+MODEL_FILES = ['models/best_model.pkl', 'models/scaler.pkl', 'models/encoders.pkl', 'models/model_meta.json']
+
+
+def normalize_education_level(value):
+    value = (value or 'literate').strip().lower()
+    if value in {'studied', 'study', 'educated', 'literate', 'read'}:
+        return 'literate'
+    if value in {'illiterate', 'simple', 'picture', 'visual', 'voice'}:
+        return 'illiterate'
+    return 'literate'
+
+
+def build_interface_context(username):
+    user = get_user(username) if username else None
+    education_level = normalize_education_level((user or {}).get('education_level') or session.get('education_level'))
+    language = (user or {}).get('language') or session.get('language') or 'en'
+    profile_config = farmer_analyzer.get_profile_based_interface(education_level)
+    return {
+        'education_level': education_level,
+        'education_label': 'Illiterate / Picture mode' if education_level == 'illiterate' else 'Studied / Science mode',
+        'language': language,
+        'profile_config': profile_config,
+    }
+
+def ensure_model_ready():
+    """Create a Kaggle-style training CSV and model artifacts for first run."""
+    if all(os.path.exists(path) for path in MODEL_FILES):
+        return
+    df = generate_crop_dataset(2500)
+    store_dataset_sample(df.head(200).to_dict(orient='records'))
+    train_models(df)
+    log_event('TRAIN', 'Auto-trained starter model from Kaggle-style crop yield dataset')
 
 # ─── Auth Decorators ──────────────────────────────────────
 def login_required(f):
@@ -75,12 +126,14 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        preferred_level = normalize_education_level(request.form.get('education_level'))
+        preferred_language = request.form.get('language', 'en')
         user = get_user(username)
         if user and check_password_hash(user['password'], password):
             session['username'] = username
             session['role'] = user.get('role','user')
-            session['education_level'] = user.get('education_level', 'literate')
-            session['language'] = user.get('language', 'en')
+            session['education_level'] = normalize_education_level(user.get('education_level') or preferred_level)
+            session['language'] = user.get('language', preferred_language)
             log_event('LOGIN', f'{username} logged in', username)
             return redirect(url_for('dashboard'))
         # Demo fallback
@@ -96,6 +149,18 @@ def login():
             session['education_level'] = 'illiterate'
             session['language'] = 'kn'
             return redirect(url_for('dashboard'))
+        if username == 'farmer_educated' and password == 'farmer123':
+            session['username'] = 'farmer_educated'
+            session['role'] = 'user'
+            session['education_level'] = 'literate'
+            session['language'] = 'en'
+            return redirect(url_for('dashboard'))
+        if username == 'farmer_illiterate' and password == 'farmer123':
+            session['username'] = 'farmer_illiterate'
+            session['role'] = 'user'
+            session['education_level'] = 'illiterate'
+            session['language'] = 'kn'
+            return redirect(url_for('dashboard'))
         flash('Invalid credentials', 'danger')
     return render_template('login.html')
 
@@ -105,7 +170,7 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        education_level = request.form.get('education_level', 'literate')
+        education_level = normalize_education_level(request.form.get('education_level'))
         language = request.form.get('language', 'en')
         phone = request.form.get('phone', '')
         location = request.form.get('location', '')
@@ -134,11 +199,14 @@ def dashboard():
         with open('models/model_meta.json') as f:
             model_meta = json.load(f)
     except: pass
+    interface_context = build_interface_context(session['username'])
     return render_template('dashboard.html', stats=stats, recent=recent,
                            model_meta=model_meta, username=session['username'],
                            role=session.get('role','user'),
-                           education_level=session.get('education_level', 'literate'),
-                           language=session.get('language', 'en'))
+                           education_level=interface_context['education_level'],
+                           education_label=interface_context['education_label'],
+                           profile_config=interface_context['profile_config'],
+                           language=interface_context['language'])
 
 @app.route('/predict', methods=['GET','POST'])
 @login_required
@@ -146,6 +214,8 @@ def predict():
     result = None
     recommendations = None
     weather_payload = None
+    best_crops = []
+    suitable_crops = []
     form_data = {}
     if request.method == 'POST':
         area_acres = float(request.form.get('area_acres') or request.form.get('area') or 0)
@@ -181,7 +251,11 @@ def predict():
             'Longitude': longitude
         }
         try:
+            ensure_model_ready()
             result = predict_yield(form_data)
+            best_crops = recommend_best_crops(form_data, CROP_LIST, top_n=5)
+            if best_crops:
+                form_data['Best_Crop'] = best_crops[0]['crop']
             recommendations = recommendation_engine.get_comprehensive_recommendation(
                 form_data['Crop'],
                 form_data['Soil_Type'],
@@ -192,18 +266,27 @@ def predict():
             )
             result['recommendations'] = recommendations
             result['weather'] = weather_payload
-            save_prediction(session['username'], form_data, result)
-            log_event('PREDICTION', f"Predicted yield for {form_data['Crop']}: {result['yield_per_hectare']} kg/ha", session['username'])
+            result['best_crops'] = best_crops
+            if weather_payload and weather_payload.get('status') == 'success':
+                suitable_crops = get_suitable_crops_for_weather(weather_payload)
+                result['suitable_crops'] = suitable_crops
+            safe_result = make_json_safe(result)
+            safe_form_data = make_json_safe(form_data)
+            save_prediction(session['username'], safe_form_data, safe_result)
+            log_event('PREDICTION', f"Predicted yield for {form_data['Crop']}: {safe_result['yield_per_hectare']} kg/ha", session['username'])
+            result = safe_result
         except Exception as e:
             flash(f'Prediction error: {str(e)}. Please train the model first.', 'danger')
 
     return render_template('predict.html', result=result, form_data=form_data,
                            recommendations=recommendations, weather_payload=weather_payload,
+                           best_crops=best_crops, suitable_crops=suitable_crops,
                            crops=CROP_LIST, soils=SOIL_LIST, seasons=SEASON_LIST,
                            weathers=WEATHER_LIST, states=STATE_LIST,
                            username=session['username'], role=session.get('role','user'),
                            education_level=session.get('education_level', 'literate'),
-                           language=session.get('language', 'en'))
+                           language=session.get('language', 'en'),
+                           chatbot_available=bool(Config.CEREBRAS_API_KEY))
 
 @app.route('/train', methods=['GET','POST'])
 @login_required
@@ -212,7 +295,7 @@ def train():
     model_meta = {}
     if request.method == 'POST':
         try:
-            df = generate_crop_dataset(int(request.form.get('n_samples', 2000)))
+            df = generate_crop_dataset(int(request.form.get('n_samples', 2500)))
             # Store sample in MongoDB
             sample = df.head(200).to_dict(orient='records')
             store_dataset_sample(sample)
@@ -278,8 +361,15 @@ def admin():
     logs = get_logs(50)
     stats = get_prediction_stats()
     dataset = get_crop_data(20)
+    model_meta = {}
+    try:
+        with open('models/model_meta.json') as f:
+            model_meta = json.load(f)
+    except Exception:
+        pass
     return render_template('admin.html', users=users, logs=logs, stats=stats,
-                           dataset=dataset, username=session['username'], role='admin')
+                           dataset=dataset, model_meta=model_meta,
+                           username=session['username'], role='admin')
 
 @app.route('/report')
 @login_required
@@ -293,7 +383,8 @@ def report():
 def api_predict():
     data = request.get_json()
     try:
-        result = predict_yield(data)
+        ensure_model_ready()
+        result = make_json_safe(predict_yield(data))
         return jsonify({'status': 'success', 'result': result})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
@@ -326,6 +417,41 @@ def api_weather():
         'forecast': forecast,
         'suitable_crops': suitable_crops
     })
+
+@app.route('/api/best-crops', methods=['POST'])
+@login_required
+def api_best_crops():
+    """Rank best crops for a farmer's land and current conditions."""
+    data = request.get_json() or {}
+    try:
+        ensure_model_ready()
+        area_acres = float(data.get('area_acres') or data.get('Area_Acres') or 1)
+        latitude = data.get('latitude') or data.get('Latitude')
+        longitude = data.get('longitude') or data.get('Longitude')
+        weather_payload = None
+        if latitude and longitude and data.get('use_weather', True):
+            weather_payload = get_weather_data(float(latitude), float(longitude))
+            if weather_payload.get('status') == 'success':
+                data['Rainfall'] = weather_payload.get('rainfall', data.get('Rainfall', 0))
+                data['Temperature'] = weather_payload.get('temperature', data.get('Temperature', 28))
+                data['Humidity'] = weather_payload.get('humidity', data.get('Humidity', 65))
+        payload = {
+            'Crop': data.get('Crop', 'Rice'),
+            'State': data.get('State', data.get('state', 'Karnataka')),
+            'Season': data.get('Season', data.get('season', 'Kharif')),
+            'Soil_Type': data.get('Soil_Type', data.get('soil_type', 'Loamy')),
+            'Weather_Condition': data.get('Weather_Condition', data.get('weather', 'Sunny')),
+            'Area': area_acres * 0.404686,
+            'Rainfall': data.get('Rainfall', data.get('rainfall', 800)),
+            'Temperature': data.get('Temperature', data.get('temperature', 28)),
+            'Humidity': data.get('Humidity', data.get('humidity', 65)),
+            'Fertilizer_Usage': data.get('Fertilizer_Usage', data.get('fertilizer', 180)),
+            'Pesticide_Usage': data.get('Pesticide_Usage', data.get('pesticide', 1.5)),
+        }
+        ranked = recommend_best_crops(payload, CROP_LIST, top_n=5)
+        return jsonify({'status': 'success', 'best_crops': ranked, 'weather': weather_payload})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
 
 @app.route('/api/weather/forecast', methods=['GET'])
 def api_weather_forecast():
@@ -471,14 +597,15 @@ def api_chat():
     data = request.get_json()
     question = data.get('question')
     language = data.get('language', 'en')
+    education_level = session.get('education_level', 'literate')
     
     if not question:
         return jsonify({'status': 'error', 'message': 'Question required'}), 400
     
-    response = cerebras_client.ask_agricultural_question(question, language)
+    response = cerebras_client.ask_agricultural_question(question, language, education_level)
     
     save_chat_log(session.get('username'), question, response.get('answer'), language)
-    
+
     return jsonify(response)
 
 @app.route('/api/chat/history', methods=['GET'])
@@ -525,7 +652,7 @@ def api_admin_logs():
     
     logs = get_logs(limit)
     if event_type:
-        logs = [log for log in logs if log.get('event_type') == event_type]
+        logs = [log for log in logs if log.get('type') == event_type]
     
     return jsonify({
         'status': 'success',
@@ -613,12 +740,12 @@ def api_user_preferences():
     update_user_preferences(
         session.get('username'),
         language=data.get('language', 'en'),
-        education_level=data.get('education_level', 'literate'),
+        education_level=normalize_education_level(data.get('education_level', 'literate')),
         phone=data.get('phone', ''),
         location=data.get('location', '')
     )
     session['language'] = data.get('language', 'en')
-    session['education_level'] = data.get('education_level', 'literate')
+    session['education_level'] = normalize_education_level(data.get('education_level', 'literate'))
     
     return jsonify({
         'status': 'success',
@@ -647,48 +774,19 @@ def init_app():
     os.makedirs('data', exist_ok=True)
     os.makedirs('models', exist_ok=True)
     os.makedirs('static/images/crops', exist_ok=True)
-    
-    # Create demo users with education level
-    try:
-        create_user('admin', 'admin@cropai.com', generate_password_hash('admin123'), 'admin')
-        create_user('farmer_educated', 'farmer1@cropai.com', generate_password_hash('farmer123'), 'user')
-        create_user('farmer_illiterate', 'farmer2@cropai.com', generate_password_hash('farmer123'), 'user')
-        
-        # Set education levels
-        db = get_db()
-        if db:
-            db.users.update_one(
-                {'username': 'farmer_educated'},
-                {'$set': {'education_level': 'literate'}}
-            )
-            db.users.update_one(
-                {'username': 'farmer_illiterate'},
-                {'$set': {'education_level': 'illiterate'}}
-            )
-    except:
-        pass
-    
-    print("=" * 50)
-    print("🌾 Enhanced CropYield AI System started!")
-    print("✅ Weather API: OpenMeteo (Free)")
-    print("✅ Chatbot: Cerebras AI (Free)")
-    print("✅ Location: OpenStreetMap (Free)")
-    print("=" * 50)
-
-# ─── Init ─────────────────────────────────────────────────
-def init_app():
-    os.makedirs('data', exist_ok=True)
-    os.makedirs('models', exist_ok=True)
-    os.makedirs('static/images/crops', exist_ok=True)
     try:
         create_user('admin', 'admin@cropai.com', generate_password_hash('admin123'), 'admin', 'literate', 'en')
         create_user('farmer', 'farmer@cropai.com', generate_password_hash('farmer123'), 'user', 'illiterate', 'kn')
         create_user('farmer_educated', 'farmer1@cropai.com', generate_password_hash('farmer123'), 'user', 'literate', 'en')
         create_user('farmer_illiterate', 'farmer2@cropai.com', generate_password_hash('farmer123'), 'user', 'illiterate', 'hi')
     except: pass
+    try:
+        ensure_model_ready()
+    except Exception as exc:
+        print(f"Starter model training skipped: {exc}")
     print("=" * 50)
     print("CropYield AI System started")
-    print("Demo users: admin/admin123, farmer/farmer123")
+    print("Demo users: admin/admin123, farmer/farmer123, farmer_educated/farmer123, farmer_illiterate/farmer123")
     print("Weather: Open-Meteo | Location: OpenStreetMap | Chatbot: Cerebras")
     print("=" * 50)
 

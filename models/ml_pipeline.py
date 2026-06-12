@@ -123,6 +123,26 @@ def predict_yield(input_data: dict) -> dict:
         'accuracy': meta['results'][best]['Accuracy']
     }
 
+def recommend_best_crops(input_data: dict, crops=None, top_n=5) -> list:
+    """Rank crops for the same land and weather by predicted total yield."""
+    crops = crops or ['Rice','Wheat','Maize','Cotton','Sugarcane','Soybean','Groundnut','Barley','Jowar','Bajra']
+    ranked = []
+    for crop in crops:
+        candidate = dict(input_data)
+        candidate['Crop'] = crop
+        try:
+            prediction = predict_yield(candidate)
+            ranked.append({
+                'crop': crop,
+                'yield_per_hectare': prediction['yield_per_hectare'],
+                'total_yield': prediction['total_yield'],
+                'confidence': prediction['confidence'],
+                'model_used': prediction['model_used'],
+            })
+        except Exception:
+            continue
+    return sorted(ranked, key=lambda item: item['total_yield'], reverse=True)[:top_n]
+
 if __name__ == '__main__':
     from utils.dataset_generator import generate_crop_dataset
     df = generate_crop_dataset()

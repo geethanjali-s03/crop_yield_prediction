@@ -3,6 +3,21 @@
 {% block page_title %}<i class="bi bi-speedometer2 me-2"></i>Dashboard{% endblock %}
 
 {% block content %}
+<div class="card mb-4" style="background:linear-gradient(135deg, #f3fbf4, #fffdf0);border-color:#d7ebdd;">
+  <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <div style="font-size:12px;color:#356044;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Farmer mode</div>
+      <h4 class="m-0" style="color:#134f2d;">{{ education_label or ('Illiterate / Picture mode' if education_level == 'illiterate' else 'Studied / Science mode') }}</h4>
+      <div style="font-size:13px;color:#4b5563;max-width:720px;">Your dashboard adapts to the way you want to use the system. Voice, map and quick crop advice are always available.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/predict" class="btn btn-primary"><i class="bi bi-lightning-charge me-1"></i>Predict</a>
+      <a href="/history" class="btn btn-outline-primary"><i class="bi bi-clock-history me-1"></i>History</a>
+      {% if role == 'admin' %}<a href="/admin" class="btn btn-outline-success"><i class="bi bi-shield-check me-1"></i>Admin</a>{% endif %}
+    </div>
+  </div>
+</div>
+
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="stat-card sc-green">

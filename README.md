@@ -119,6 +119,8 @@ Visit: http://localhost:5000
 | `reports` | Generated reports | data, created_at, username |
 | `logs` | System audit logs | type, message, username, timestamp |
 
+> The app uses these names directly in MongoDB when `MONGO_URI` is configured. If MongoDB is unavailable, the same data is stored in the SQLite fallback tables with matching names.
+
 ---
 
 ## 📊 Dataset Features

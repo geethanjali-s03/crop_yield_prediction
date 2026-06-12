@@ -7,9 +7,6 @@ import json
 from datetime import datetime
 from config import Config
 
-# Open-Meteo API (Free, no API key required)
-WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast"
-
 def get_weather_data(latitude, longitude):
     """
     Fetch weather data from Open-Meteo API (Free)
@@ -23,7 +20,7 @@ def get_weather_data(latitude, longitude):
             "daily": "precipitation_sum,temperature_2m_max,temperature_2m_min,rain_sum",
             "timezone": "auto"
         }
-        response = requests.get(WEATHER_API_URL, params=params, timeout=10)
+        response = requests.get(Config.WEATHER_API_URL, params=params, timeout=10)
         response.raise_for_status()
         
         data = response.json()
@@ -61,7 +58,7 @@ def get_weather_forecast(latitude, longitude, days=7):
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,rain_sum,precipitation_sum",
             "timezone": "auto"
         }
-        response = requests.get(WEATHER_API_URL, params=params, timeout=10)
+        response = requests.get(Config.WEATHER_API_URL, params=params, timeout=10)
         response.raise_for_status()
         
         data = response.json()
