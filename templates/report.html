@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}<i class="bi bi-file-earmark-bar-graph me-2"></i>Prediction Reports{% endblock %}
+
+{% block content %}
+{% if predictions %}
+<!-- Summary Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card sc-green">
+      <div class="stat-icon"><i class="bi bi-file-earmark-check"></i></div>
+      <div class="stat-val">{{ predictions|length }}</div>
+      <div class="stat-label">Total Predictions</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card sc-blue">
+      <div class="stat-icon"><i class="bi bi-graph-up"></i></div>
+      {% set avg_yield = (predictions | map(attribute='result') | map(attribute='yield_per_hectare') | list | sum) / (predictions|length) %}
+      <div class="stat-val">{{ "{:,.0f}".format(avg_yield) }}</div>
+      <div class="stat-label">Avg Yield/ha (kg)</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card sc-orange">
+      <div class="stat-icon"><i class="bi bi-flower2"></i></div>
+      {% set crops = predictions | map(attribute='input') | map(attribute='Crop') | list | unique | list %}
+      <div class="stat-val">{{ crops|length }}</div>
+      <div class="stat-label">Crop Types</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card sc-teal">
+      <div class="stat-icon"><i class="bi bi-percent"></i></div>
+      {% set avg_conf = (predictions | map(attribute='result') | map(attribute='confidence') | list | sum) / (predictions|length) %}
+      <div class="stat-val">{{ "{:.1f}".format(avg_conf) }}%</div>
+      <div class="stat-label">Avg Confidence</div>
+    </div>
+  </div>
+</div>
+
+<!-- Print / Export -->
+<div class="d-flex justify-content-end mb-3 gap-2">
+  <button onclick="window.print()" class="btn btn-outline-primary btn-sm"><i class="bi bi-printer me-1"></i>Print Report</button>
+  <button onclick="exportCSV()" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV</button>
+</div>
+
+<!-- Report Table -->
+<div class="card" id="reportContent">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <i class="bi bi-file-earmark-text me-2"></i><span class="card-title">Detailed Prediction Report</span>
+    </div>
+    <small style="color:#6b7280;">Generated: <span id="genDate"></span></small>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="reportTable">
+        <thead>
+          <tr>
+            <th>No</th><th>Crop</th><th>Season</th><th>Soil</th><th>Area(ha)</th>
+            <th>Rainfall(mm)</th><th>Temp(°C)</th><th>Humidity(%)</th>
+            <th>Fertilizer(kg/ha)</th><th>Yield/ha(kg)</th><th>Total(kg)</th>
+            <th>Confidence</th><th>Algorithm</th><th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for i, p in predictions|enumerate %}
+        <tr>
+          <td style="color:#9ca3af;font-size:12px;">{{ loop.index }}</td>
+          <td><span class="badge" style="background:#e8f5e9;color:#166534;">{{ p.input.Crop }}</span></td>
+          <td style="font-size:13px;">{{ p.input.Season }}</td>
+          <td style="font-size:13px;">{{ p.input.Soil_Type }}</td>
+          <td>{{ p.input.Area }}</td>
+          <td>{{ p.input.Rainfall }}</td>
+          <td>{{ p.input.Temperature }}</td>
+          <td>{{ p.input.Humidity }}</td>
+          <td>{{ p.input.Fertilizer_Usage }}</td>
+          <td style="font-weight:600;color:#1a6b3c;">{{ "{:,.0f}".format(p.result.yield_per_hectare) }}</td>
+          <td style="font-weight:500;">{{ "{:,.0f}".format(p.result.total_yield) }}</td>
+          <td style="font-size:12px;">{{ p.result.confidence }}%</td>
+          <td style="font-size:11px;color:#6b7280;">{{ p.result.model_used }}</td>
+          <td style="font-size:11px;color:#9ca3af;">{{ p.timestamp.strftime('%d/%m/%Y') if p.timestamp else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="card text-center p-5">
+  <i class="bi bi-file-earmark-x" style="font-size:60px;color:#d1d5db;"></i>
+  <h5 class="mt-3">No Report Data</h5>
+  <p class="text-muted">Make some predictions first to generate reports.</p>
+  <a href="/predict" class="btn btn-primary mx-auto" style="width:fit-content;">Start Predicting</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('genDate').textContent = new Date().toLocaleString();
+
+function exportCSV() {
+  const table = document.getElementById('reportTable');
+  const rows = Array.from(table.querySelectorAll('tr'));
+  const csv = rows.map(row =>
+    Array.from(row.querySelectorAll('th,td')).map(cell => '"' + cell.innerText.replace(/"/g,'""') + '"').join(',')
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'crop_yield_report_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+</script>
+{% endblock %}

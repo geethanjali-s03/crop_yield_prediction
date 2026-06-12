@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Farm Advisory{% endblock %}
+{% block page_title %}<i class="bi bi-flower2 me-2"></i>Farm Advisory{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  .advisory-shell { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); gap: 18px; }
+  .field-card { border: 1px solid #dce8de; background: #fff; border-radius: 8px; box-shadow: 0 8px 22px rgba(26,107,60,.08); }
+  .soft-band { background: linear-gradient(135deg, #e8f5e9, #fff8e1); border: 1px solid #c8e6c9; border-radius: 8px; }
+  .crop-grid { display: grid; grid-template-columns: repeat(5, minmax(72px, 1fr)); gap: 10px; }
+  .crop-tile { border: 1px solid #d7e6da; background: #f8fbf8; border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; min-height: 74px; transition: .15s ease; }
+  .crop-tile:hover, .crop-tile.active { border-color: #1a6b3c; background: #e8f5e9; transform: translateY(-1px); }
+  .crop-icon { font-size: 25px; display: block; line-height: 1.1; }
+  .crop-name { font-size: 12px; font-weight: 700; color: #1f3d2a; margin-top: 5px; }
+  #farmMap { height: 260px; border-radius: 8px; border: 1px solid #d7e6da; overflow: hidden; }
+  .voice-btn, .icon-btn { width: 42px; min-width: 42px; display: inline-flex; align-items: center; justify-content: center; }
+  .voice-btn.recording { background: #dc3545; border-color: #dc3545; color: #fff; }
+  .metric { background: #f8faf8; border: 1px solid #e5eee6; border-radius: 8px; padding: 12px; }
+  .metric strong { display: block; font-size: 20px; color: #155d35; }
+  .simple-mode .advanced-only { display: none !important; }
+  .simple-mode .form-label, .simple-mode .btn, .simple-mode .form-control, .simple-mode .form-select { font-size: 17px; }
+  .simple-mode .crop-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+  .simple-mode .crop-tile { min-height: 105px; }
+  .simple-mode .crop-icon { font-size: 38px; }
+  .chat-container { border: 1px solid #d7e6da; border-radius: 8px; overflow: hidden; background: #fff; }
+  .chat-messages { height: 220px; overflow-y: auto; padding: 12px; background: #f8fbf8; }
+  .message { margin-bottom: 10px; }
+  .message .content { max-width: 88%; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+  .message.user .content { margin-left: auto; background: #1a6b3c; color: #fff; }
+  .message.bot .content { background: #fff; border: 1px solid #e5eee6; color: #1f2937; }
+  .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e5eee6; }
+  .chat-input input { flex: 1; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; }
+  @media (max-width: 992px) { .advisory-shell { grid-template-columns: 1fr; } .crop-grid { grid-template-columns: repeat(2, minmax(110px, 1fr)); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="{{ 'simple-mode' if education_level == 'illiterate' else '' }}">
+  <div class="soft-band p-3 mb-3 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+    <div>
+      <div style="font-size:13px;color:#356044;">{{ 'Picture and voice mode' if education_level == 'illiterate' else 'Scientific advisory mode' }}</div>
+      <h2 class="m-0" style="font-size:24px;color:#134f2d;">Choose crop, land, weather and get guidance</h2>
+    </div>
+    <div class="d-flex gap-2">
+      <select id="languageSelect" class="form-select form-select-sm" style="width:130px;">
+        <option value="en" {{ 'selected' if language == 'en' }}>English</option>
+        <option value="kn" {{ 'selected' if language == 'kn' }}>Kannada</option>
+        <option value="hi" {{ 'selected' if language == 'hi' }}>Hindi</option>
+      </select>
+      <button class="btn btn-outline-primary btn-sm" type="button" onclick="speakCurrentResult()" title="Read result"><i class="bi bi-volume-up"></i></button>
+    </div>
+  </div>
+
+  <div class="advisory-shell">
+    <form method="POST" id="predictForm" class="field-card p-3">
+      <input type="hidden" name="latitude" id="latitude" value="{{ form_data.get('Latitude','') }}">
+      <input type="hidden" name="longitude" id="longitude" value="{{ form_data.get('Longitude','') }}">
+
+      <div class="mb-3">
+        <label class="form-label">Crop</label>
+        <select name="crop" id="cropSelect" class="form-select d-none" required>
+          {% for c in crops %}<option value="{{ c }}" {{ 'selected' if form_data.get('Crop') == c }}>{{ c }}</option>{% endfor %}
+        </select>
+        <div class="crop-grid">
+          {% set crop_icons = {'Rice':'bi-water','Wheat':'bi-flower1','Maize':'bi-tree','Cotton':'bi-cloud','Sugarcane':'bi-slash-lg','Soybean':'bi-circle','Groundnut':'bi-record-circle','Barley':'bi-flower3','Jowar':'bi-tree-fill','Bajra':'bi-flower2'} %}
+          {% for c in crops %}
+          <button type="button" class="crop-tile {{ 'active' if form_data.get('Crop', crops[0]) == c }}" data-crop="{{ c }}">
+            <i class="bi {{ crop_icons.get(c, 'bi-flower1') }} crop-icon"></i>
+            <span class="crop-name">{{ c }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Location</label>
+          <div class="input-group">
+            <input type="text" name="location_name" id="locationInput" class="form-control" placeholder="Village or city" value="{{ form_data.get('Location_Name','') }}">
+            <button type="button" class="btn btn-outline-primary icon-btn" id="voiceLocationBtn" title="Speak location"><i class="bi bi-mic"></i></button>
+            <button type="button" class="btn btn-outline-success icon-btn" id="searchLocationBtn" title="Find location"><i class="bi bi-search"></i></button>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">State</label>
+          <select name="state" class="form-select">
+            {% for s in states %}<option value="{{ s }}" {{ 'selected' if form_data.get('State') == s }}>{{ s }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Land acres</label>
+          <input type="number" name="area_acres" class="form-control" step="0.01" min="0.1" max="1200" value="{{ form_data.get('Area_Acres','') }}" required>
+        </div>
+        <div class="col-12">
+          <div id="farmMap"></div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-4">
+          <label class="form-label">Season</label>
+          <select name="season" class="form-select">{% for s in seasons %}<option value="{{ s }}" {{ 'selected' if form_data.get('Season') == s }}>{{ s }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Soil</label>
+          <select name="soil_type" class="form-select">{% for s in soils %}<option value="{{ s }}" {{ 'selected' if form_data.get('Soil_Type') == s }}>{{ s }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Weather</label>
+          <select name="weather" class="form-select">{% for w in weathers %}<option value="{{ w }}" {{ 'selected' if form_data.get('Weather_Condition') == w }}>{{ w }}</option>{% endfor %}</select>
+        </div>
+      </div>
+
+      <div class="form-check form-switch mt-3">
+        <input class="form-check-input" type="checkbox" name="use_weather" id="useWeather" checked>
+        <label class="form-check-label" for="useWeather">Use live weather for selected location</label>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-md-4">
+          <label class="form-label">Rainfall mm</label>
+          <input type="number" name="rainfall" id="rainfallInput" class="form-control" step="0.1" value="{{ form_data.get('Rainfall','800') }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Temperature C</label>
+          <input type="number" name="temperature" id="tempInput" class="form-control" step="0.1" value="{{ form_data.get('Temperature','28') }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Humidity %</label>
+          <input type="number" name="humidity" id="humidInput" class="form-control" step="0.1" value="{{ form_data.get('Humidity','65') }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Fertilizer kg/ha</label>
+          <input type="number" name="fertilizer" class="form-control" step="0.1" min="0" value="{{ form_data.get('Fertilizer_Usage','180') }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Pesticide kg/ha</label>
+          <input type="number" name="pesticide" class="form-control" step="0.01" min="0" value="{{ form_data.get('Pesticide_Usage','1.5') }}">
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary px-4" id="submitBtn"><i class="bi bi-lightning-charge me-2"></i>Predict and advise</button>
+        <button type="button" class="btn btn-outline-secondary" id="weatherBtn"><i class="bi bi-cloud-sun me-1"></i>Fetch weather</button>
+      </div>
+    </form>
+
+    <aside class="d-grid gap-3">
+      {% if result %}
+      <div class="field-card p-3" id="resultText">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div>
+            <div style="font-size:12px;color:#6b7280;">Best crop plan</div>
+            <h3 style="color:#134f2d;margin:0;">{{ form_data.Crop }}</h3>
+          </div>
+          <span class="badge text-bg-success">{{ result.confidence }}% confidence</span>
+        </div>
+        <div class="row g-2">
+          <div class="col-6"><div class="metric"><small>Yield / hectare</small><strong>{{ "{:,.0f}".format(result.yield_per_hectare) }}</strong><span>kg</span></div></div>
+          <div class="col-6"><div class="metric"><small>Total yield</small><strong>{{ "{:,.0f}".format(result.total_yield) }}</strong><span>kg</span></div></div>
+        </div>
+        <hr>
+        <h6>NPK</h6>
+        <div class="d-flex gap-2 mb-3">
+          <span class="badge text-bg-success">N {{ recommendations.npk.N }}</span>
+          <span class="badge text-bg-warning">P {{ recommendations.npk.P }}</span>
+          <span class="badge text-bg-info">K {{ recommendations.npk.K }}</span>
+        </div>
+        <h6>Fertilizer</h6>
+        <ul class="small mb-3">{% for item in recommendations.fertilizers[:2] %}<li>{{ item.fertilizer }}: {{ item.quantity_per_hectare }}</li>{% endfor %}</ul>
+        <h6>Pesticide</h6>
+        <ul class="small mb-3">{% for item in recommendations.pesticides[:2] %}<li>{{ item.pesticide }}: {{ item.dosage }}</li>{% endfor %}</ul>
+        <h6>Irrigation</h6>
+        <p class="small mb-0">{{ recommendations.irrigation.base_schedule.frequency }} at {{ recommendations.irrigation.base_schedule.depth }}. {{ recommendations.irrigation.adjustments|join(' ') }}</p>
+        <div class="advanced-only mt-3 pt-3 border-top">
+          <small class="text-muted">Model: {{ result.model_used }} | Accuracy: {{ result.accuracy }}%</small>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="field-card p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="m-0"><i class="bi bi-robot me-1"></i>Agri Chat</h5>
+          <button type="button" class="btn btn-outline-primary btn-sm voice-btn" id="voiceChatBtn" title="Speak question"><i class="bi bi-mic"></i></button>
+        </div>
+        <div id="chatbot-container"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="{{ url_for('static', filename='js/voice-input.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+<script>
+const cropSelect = document.getElementById('cropSelect');
+document.querySelectorAll('.crop-tile').forEach(tile => {
+  tile.addEventListener('click', () => {
+    document.querySelectorAll('.crop-tile').forEach(t => t.classList.remove('active'));
+    tile.classList.add('active');
+    cropSelect.value = tile.dataset.crop;
+  });
+});
+
+const map = L.map('farmMap').setView([15.3173, 75.7139], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: 'OpenStreetMap'}).addTo(map);
+let marker = null;
+function setFarmLocation(lat, lon) {
+  document.getElementById('latitude').value = lat.toFixed(6);
+  document.getElementById('longitude').value = lon.toFixed(6);
+  if (marker) map.removeLayer(marker);
+  marker = L.marker([lat, lon], {draggable: true}).addTo(map);
+  marker.on('dragend', e => setFarmLocation(e.target.getLatLng().lat, e.target.getLatLng().lng));
+  map.setView([lat, lon], 12);
+}
+map.on('click', e => setFarmLocation(e.latlng.lat, e.latlng.lng));
+
+document.getElementById('searchLocationBtn').addEventListener('click', async () => {
+  const city = document.getElementById('locationInput').value.trim();
+  if (!city) return;
+  const response = await fetch('/api/location/search', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({city})
+  });
+  const data = await response.json();
+  if (data.status === 'success') setFarmLocation(data.latitude, data.longitude);
+});
+
+document.getElementById('weatherBtn').addEventListener('click', async () => {
+  const lat = document.getElementById('latitude').value;
+  const lon = document.getElementById('longitude').value;
+  if (!lat || !lon) return;
+  const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+  const data = await response.json();
+  if (data.status === 'success') {
+    document.getElementById('rainfallInput').value = data.weather.rainfall || 0;
+    document.getElementById('tempInput').value = data.weather.temperature || 0;
+    document.getElementById('humidInput').value = data.weather.humidity || 0;
+  }
+});
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => setFarmLocation(pos.coords.latitude, pos.coords.longitude));
+}
+
+if (isVoiceInputSupported()) {
+  attachVoiceButton('locationInput', 'voiceLocationBtn');
+  document.getElementById('voiceChatBtn').addEventListener('click', () => {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    voiceInput.setLanguage(document.getElementById('languageSelect').value);
+    voiceInput.onResult = text => input.value = text;
+    voiceInput.startListening();
+  });
+}
+
+function speakCurrentResult() {
+  const el = document.getElementById('resultText');
+  if (!el || !isTextToSpeechSupported()) return;
+  const lang = {en: 'en-US', kn: 'kn-IN', hi: 'hi-IN'}[document.getElementById('languageSelect').value] || 'en-US';
+  speakText(el.innerText, lang);
+}
+
+document.getElementById('predictForm').addEventListener('submit', () => {
+  document.getElementById('submitBtn').disabled = true;
+});
+</script>
+{% endblock %}

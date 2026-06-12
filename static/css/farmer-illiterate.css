@@ -1,0 +1,393 @@
+/* ============================================
+   CropYield AI - Simple Farmer Interface (Illiterate)
+   Large text, big buttons, pictures
+   ============================================ */
+
+.simple-interface {
+    font-size: 1.3rem !important;
+    line-height: 1.8;
+}
+
+.simple-interface .form-label {
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+}
+
+.simple-interface .form-control,
+.simple-interface .form-select {
+    font-size: 1.3rem !important;
+    padding: 15px 20px !important;
+    height: auto !important;
+}
+
+.simple-interface .btn {
+    font-size: 1.4rem !important;
+    padding: 20px 40px !important;
+    min-height: 60px !important;
+    margin: 15px 0 !important;
+}
+
+.simple-interface h1 {
+    font-size: 2.5rem !important;
+    font-weight: bold !important;
+}
+
+.simple-interface h2 {
+    font-size: 2rem !important;
+}
+
+.simple-interface h3 {
+    font-size: 1.8rem !important;
+}
+
+.simple-interface h4 {
+    font-size: 1.6rem !important;
+}
+
+.simple-interface p {
+    font-size: 1.3rem !important;
+}
+
+/* Picture Grid */
+.picture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.picture-option {
+    background: white;
+    border: 5px solid var(--primary-green);
+    border-radius: 15px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.picture-option:hover {
+    transform: scale(1.1) rotateY(5deg);
+    box-shadow: 0 10px 30px rgba(46, 204, 113, 0.4);
+    border-color: var(--accent-yellow);
+}
+
+.picture-option img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.picture-option label {
+    font-size: 1.4rem !important;
+    font-weight: bold !important;
+    cursor: pointer;
+    margin: 0 !important;
+}
+
+.picture-option input[type="radio"] {
+    width: 25px !important;
+    height: 25px !important;
+    cursor: pointer;
+}
+
+/* Voice Input Button */
+.voice-button {
+    background: linear-gradient(90deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    font-size: 2.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+    margin: 10px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.voice-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.6);
+}
+
+.voice-button.recording {
+    background: #e74c3c;
+    animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% { 
+        box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+    }
+    50% { 
+        box-shadow: 0 5px 25px rgba(231, 76, 60, 0.8);
+    }
+}
+
+/* Simple Step-by-Step Layout */
+.step-container {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.05), rgba(52, 211, 153, 0.05));
+    border-left: 8px solid var(--primary-green);
+    padding: 25px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.step-number {
+    background: var(--primary-green);
+    color: white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.step-title {
+    font-size: 1.6rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.step-description {
+    font-size: 1.3rem;
+    line-height: 1.8;
+}
+
+/* Large Icon Buttons */
+.icon-button {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green));
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.icon-button:hover {
+    transform: translateY(-10px) scale(1.1);
+    box-shadow: 0 10px 30px rgba(46, 204, 113, 0.4);
+}
+
+.icon-button i {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+.icon-button span {
+    font-weight: bold;
+}
+
+/* Recommendation Card (Simple) */
+.simple-recommendation {
+    background: white;
+    border: 5px solid var(--primary-green);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.simple-recommendation-title {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: var(--dark-green);
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--primary-green);
+}
+
+.simple-recommendation-content {
+    font-size: 1.3rem;
+    line-height: 2;
+    color: var(--text-dark);
+}
+
+.simple-recommendation-item {
+    background: rgba(46, 204, 113, 0.1);
+    padding: 15px;
+    margin: 10px 0;
+    border-left: 5px solid var(--primary-green);
+    border-radius: 8px;
+}
+
+/* Large Result Display */
+.result-display {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green));
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    margin: 20px 0;
+    box-shadow: 0 10px 30px rgba(46, 204, 113, 0.3);
+}
+
+.result-label {
+    font-size: 1.5rem;
+    opacity: 0.9;
+    margin-bottom: 10px;
+}
+
+.result-value {
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 20px 0;
+}
+
+.result-unit {
+    font-size: 1.4rem;
+    opacity: 0.9;
+}
+
+/* Simple Crop Image Display */
+.crop-display {
+    text-align: center;
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 15px 0;
+    border: 5px solid var(--primary-green);
+}
+
+.crop-display img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.crop-name {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--dark-green);
+    margin-bottom: 10px;
+}
+
+/* Alert Messages (Large) */
+.simple-interface .alert {
+    font-size: 1.3rem !important;
+    padding: 20px !important;
+    border-radius: 15px !important;
+    margin: 15px 0 !important;
+}
+
+.simple-interface .alert-heading {
+    font-size: 1.6rem !important;
+    font-weight: bold !important;
+    margin-bottom: 10px !important;
+}
+
+/* Language Selector (Large) */
+.language-selector {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+}
+
+.language-option {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green));
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin: 10px 5px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 120px;
+}
+
+.language-option:hover,
+.language-option.active {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+    background: linear-gradient(135deg, var(--light-green), var(--primary-green));
+}
+
+/* Simplified Navigation */
+.simple-nav {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.simple-nav-item {
+    background: linear-gradient(135deg, var(--primary-green), var(--light-green));
+    color: white;
+    text-decoration: none;
+    padding: 15px 25px;
+    border-radius: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    margin: 10px;
+}
+
+.simple-nav-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(46, 204, 113, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+/* Responsive for Mobile */
+@media (max-width: 768px) {
+    .simple-interface {
+        font-size: 1.1rem !important;
+    }
+    
+    .simple-interface .btn {
+        font-size: 1.2rem !important;
+        padding: 15px 30px !important;
+    }
+    
+    .picture-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .result-value {
+        font-size: 2.2rem;
+    }
+    
+    .voice-button {
+        width: 70px;
+        height: 70px;
+        font-size: 2rem;
+    }
+}
+
+/* Print Friendly */
+@media print {
+    .simple-interface .btn,
+    .simple-interface .nav-link {
+        display: none;
+    }
+    
+    .simple-interface {
+        background: white;
+        color: black;
+    }
+}

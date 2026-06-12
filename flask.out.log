@@ -1,0 +1,7 @@
+==================================================
+CropYield AI System started
+Demo users: admin/admin123, farmer/farmer123
+Weather: Open-Meteo | Location: OpenStreetMap | Chatbot: Cerebras
+==================================================
+ * Serving Flask app 'app'
+ * Debug mode: on

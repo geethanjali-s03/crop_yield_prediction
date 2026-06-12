@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CropYield AI — Intelligent Crop Prediction Platform</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --primary:#1a6b3c; --accent:#f9a825; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0d1f14; color: #e8f5e9; overflow-x: hidden; }
+  h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
+
+  /* Hero */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .hero-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 20% 50%, rgba(26,107,60,.4) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(249,168,37,.15) 0%, transparent 50%); }
+  .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(26,107,60,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(26,107,60,.08) 1px, transparent 1px); background-size: 48px 48px; }
+
+  nav.top-nav { position: relative; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 60px; }
+  .brand { font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700; color: #fff; text-decoration: none; }
+  .brand span { color: var(--accent); }
+  .nav-links a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: 14px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: #fff; }
+  .btn-hero { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; transition: background .2s; }
+  .btn-hero:hover { background: #155e34; color: #fff; }
+
+  .hero-body { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; position: relative; z-index: 5; padding: 60px 24px; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(249,168,37,.15); border: 1px solid rgba(249,168,37,.3); border-radius: 20px; padding: 6px 16px; font-size: 13px; color: var(--accent); margin-bottom: 24px; }
+  .hero-title { font-size: clamp(36px, 6vw, 72px); font-weight: 800; line-height: 1.1; color: #fff; max-width: 780px; }
+  .hero-title em { color: #66bb6a; font-style: normal; }
+  .hero-sub { color: rgba(255,255,255,.6); font-size: 18px; max-width: 560px; margin: 20px auto 40px; line-height: 1.7; }
+  .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn-cta-primary { background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 14px 32px; font-size: 16px; font-weight: 600; text-decoration: none; transition: all .2s; }
+  .btn-cta-primary:hover { background: #155e34; color: #fff; transform: translateY(-1px); }
+  .btn-cta-outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.3); border-radius: 10px; padding: 14px 32px; font-size: 16px; font-weight: 600; text-decoration: none; transition: all .2s; }
+  .btn-cta-outline:hover { border-color: rgba(255,255,255,.6); color: #fff; }
+
+  /* Stats bar */
+  .stats-bar { position: relative; z-index: 5; background: rgba(255,255,255,.05); border-top: 1px solid rgba(255,255,255,.08); padding: 24px 60px; display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
+  .stat-item { text-align: center; }
+  .stat-item .val { font-size: 32px; font-weight: 700; color: #66bb6a; font-family: 'Space Grotesk', sans-serif; }
+  .stat-item .lbl { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 2px; }
+
+  /* Features */
+  .features { background: #f3f7f4; padding: 80px 60px; }
+  .section-label { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; }
+  .section-title { font-size: 36px; font-weight: 700; color: #111; margin-bottom: 14px; }
+  .section-sub { font-size: 16px; color: #6b7280; max-width: 520px; }
+  .feature-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 28px; height: 100%; transition: box-shadow .2s; }
+  .feature-card:hover { box-shadow: 0 8px 30px rgba(26,107,60,.1); }
+  .feature-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 16px; }
+  .fi-green { background: #e8f5e9; color: #2e7d32; }
+  .fi-blue { background: #e3f2fd; color: #1565c0; }
+  .fi-orange { background: #fff3e0; color: #e65100; }
+  .fi-teal { background: #e0f2f1; color: #00695c; }
+  .fi-purple { background: #f3e5f5; color: #6a1b9a; }
+  .fi-yellow { background: #fffde7; color: #f9a825; }
+  .feature-card h5 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #111; }
+  .feature-card p { font-size: 14px; color: #6b7280; line-height: 1.6; margin: 0; }
+
+  /* ML models section */
+  .models-section { background: #0d1f14; padding: 80px 60px; }
+  .model-pill { display: inline-flex; align-items: center; gap: 8px; background: rgba(102,187,106,.1); border: 1px solid rgba(102,187,106,.2); border-radius: 8px; padding: 10px 18px; color: #a5d6a7; font-size: 14px; font-weight: 500; margin: 6px; }
+  .model-pill .bi { color: #66bb6a; }
+
+  /* How it works */
+  .how-section { background: #fff; padding: 80px 60px; }
+  .step-num { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .step-line { width: 2px; background: #e5e7eb; flex-grow: 1; min-height: 30px; }
+
+  /* CTA section */
+  .cta-section { background: linear-gradient(135deg, #1a6b3c, #0d3d1f); padding: 80px 60px; text-align: center; }
+
+  /* Footer */
+  footer { background: #0a1a0f; padding: 24px 60px; text-align: center; color: rgba(255,255,255,.3); font-size: 13px; }
+
+  @media (max-width: 768px) {
+    nav.top-nav, .features, .models-section, .how-section, .cta-section, footer { padding-left: 20px; padding-right: 20px; }
+    .stats-bar { padding: 20px; gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <nav class="top-nav">
+    <a class="brand" href="/"><i class="bi bi-flower1 me-1"></i>Crop<span>Yield AI</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#models">ML Models</a>
+      <a href="#how">How it Works</a>
+      <a href="/login" class="btn-hero ms-2">Login</a>
+      <a href="/register" class="btn-hero ms-2" style="background:#f9a825;color:#000;">Register</a>
+    </div>
+  </nav>
+
+  <div class="hero-body">
+    <div>
+      <div class="hero-badge"><i class="bi bi-stars"></i> AI/ML Powered Agricultural Intelligence</div>
+      <h1 class="hero-title">Predict <em>Crop Yield</em><br>with Machine Learning</h1>
+      <p class="hero-sub">Leverage advanced ML algorithms — Random Forest, XGBoost, SVM and more — to accurately forecast crop production based on environmental and agricultural parameters.</p>
+      <div class="hero-cta">
+        <a href="/register" class="btn-cta-primary"><i class="bi bi-rocket-takeoff me-2"></i>Get Started Free</a>
+        <a href="/login" class="btn-cta-outline"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="val">5+</div><div class="lbl">ML Algorithms</div></div>
+    <div class="stat-item"><div class="val">10</div><div class="lbl">Crop Types</div></div>
+    <div class="stat-item"><div class="val">95%</div><div class="lbl">Prediction Accuracy</div></div>
+    <div class="stat-item"><div class="val">MongoDB</div><div class="lbl">NoSQL Database</div></div>
+    <div class="stat-item"><div class="val">Real-time</div><div class="lbl">Predictions</div></div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="container-fluid px-0">
+    <div class="text-center mb-5">
+      <div class="section-label">Platform Features</div>
+      <h2 class="section-title">Everything You Need for Crop Intelligence</h2>
+      <p class="section-sub mx-auto">A complete end-to-end system from data preparation to real-time predictions.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-green"><i class="bi bi-database"></i></div><h5>Smart Dataset Management</h5><p>Automated data cleaning, missing value handling, label encoding and feature scaling. Store and manage agricultural datasets in MongoDB.</p></div></div>
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-blue"><i class="bi bi-cpu"></i></div><h5>Multi-Algorithm ML Engine</h5><p>Train and compare 5 ML algorithms simultaneously. Auto-selects the best performing model based on R² score and RMSE metrics.</p></div></div>
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-orange"><i class="bi bi-bar-chart-line"></i></div><h5>Advanced EDA & Visualization</h5><p>Interactive charts, correlation heatmaps, distribution plots, and rainfall-yield scatter plots powered by Matplotlib & Seaborn.</p></div></div>
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-teal"><i class="bi bi-people"></i></div><h5>User & Admin Modules</h5><p>Role-based access control with separate farmer and admin views. Full CRUD operations via MongoDB collections.</p></div></div>
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-purple"><i class="bi bi-file-earmark-text"></i></div><h5>Report Generation</h5><p>Generate, view and export prediction reports. Full history tracking with timestamp, model used, and confidence scores.</p></div></div>
+      <div class="col-md-4"><div class="feature-card"><div class="feature-icon fi-yellow"><i class="bi bi-shield-check"></i></div><h5>MongoDB NoSQL Integration</h5><p>Collections for Users, Crop Data, Predictions, Reports, and System Logs. Full CRUD with PyMongo driver.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="models-section" id="models">
+  <div class="text-center mb-5">
+    <div class="section-label" style="color:#66bb6a;">Machine Learning Models</div>
+    <h2 class="section-title" style="color:#fff;">5 Algorithms, Auto-Selected Best Model</h2>
+    <p style="color:rgba(255,255,255,.5); max-width:500px; margin:0 auto;">Each model is trained, evaluated and compared. The highest R² score model is deployed automatically.</p>
+  </div>
+  <div class="text-center">
+    <div class="model-pill"><i class="bi bi-check-circle-fill"></i> Linear Regression</div>
+    <div class="model-pill"><i class="bi bi-check-circle-fill"></i> Decision Tree Regressor</div>
+    <div class="model-pill"><i class="bi bi-check-circle-fill"></i> Random Forest Regressor</div>
+    <div class="model-pill"><i class="bi bi-check-circle-fill"></i> XGBoost Regressor</div>
+    <div class="model-pill"><i class="bi bi-check-circle-fill"></i> Support Vector Machine</div>
+  </div>
+  <div class="row g-4 mt-4">
+    <div class="col-md-3 text-center"><div style="color:#66bb6a;font-size:13px;font-weight:500;">Evaluation Metrics</div><div style="color:#a5d6a7;font-size:28px;margin-top:8px;">R² Score</div><div style="color:rgba(255,255,255,.4);font-size:13px;">Coefficient of determination</div></div>
+    <div class="col-md-3 text-center"><div style="color:#66bb6a;font-size:13px;font-weight:500;">Error Metrics</div><div style="color:#a5d6a7;font-size:28px;margin-top:8px;">RMSE / MAE</div><div style="color:rgba(255,255,255,.4);font-size:13px;">Root mean squared & mean absolute error</div></div>
+    <div class="col-md-3 text-center"><div style="color:#66bb6a;font-size:13px;font-weight:500;">Deployment</div><div style="color:#a5d6a7;font-size:28px;margin-top:8px;">Joblib</div><div style="color:rgba(255,255,255,.4);font-size:13px;">Serialised model persistence</div></div>
+    <div class="col-md-3 text-center"><div style="color:#66bb6a;font-size:13px;font-weight:500;">Database</div><div style="color:#a5d6a7;font-size:28px;margin-top:8px;">MongoDB</div><div style="color:rgba(255,255,255,.4);font-size:13px;">NoSQL results storage</div></div>
+  </div>
+</section>
+
+<section class="how-section" id="how">
+  <div class="text-center mb-5">
+    <div class="section-label">Workflow</div>
+    <h2 class="section-title">How It Works</h2>
+  </div>
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      {% for step in [
+        ('1','Collect & Prepare Data','Generate/upload agricultural dataset. System performs auto-cleaning, encoding, and scaling.','bi-database-up','fi-green'),
+        ('2','Train ML Models','Click Train to run all 5 algorithms. System evaluates and selects the best model automatically.','bi-cpu-fill','fi-blue'),
+        ('3','Explore with EDA','View correlation heatmaps, distribution plots, rainfall-yield charts and feature importance.','bi-bar-chart','fi-orange'),
+        ('4','Predict Crop Yield','Enter farm parameters — crop type, area, rainfall, temperature — and get instant predictions.','bi-lightning-charge','fi-teal'),
+        ('5','View Reports','Access full prediction history, confidence scores, and generate detailed reports stored in MongoDB.','bi-file-earmark-check','fi-purple')
+      ] %}
+      <div class="d-flex gap-3 mb-4">
+        <div class="d-flex flex-column align-items-center">
+          <div class="step-num">{{ step[0] }}</div>
+          {% if not loop.last %}<div class="step-line mt-2"></div>{% endif %}
+        </div>
+        <div class="pb-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="feature-icon {{ step[4] }}" style="width:32px;height:32px;font-size:16px;border-radius:8px;flex-shrink:0;"><i class="bi {{ step[2] }}"></i></div>
+            <h5 style="font-size:16px;font-weight:600;margin:0;">{{ step[1] }}</h5>
+          </div>
+          <p style="color:#6b7280;font-size:14px;margin:0;">{{ step[3] }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2 style="color:#fff;font-size:36px;font-weight:700;margin-bottom:16px;">Ready to Predict Smarter Harvests?</h2>
+  <p style="color:rgba(255,255,255,.7);font-size:16px;margin-bottom:32px;">Join farmers and researchers using AI to optimise agricultural decisions.</p>
+  <a href="/register" class="btn-cta-primary" style="font-size:16px;padding:14px 40px;"><i class="bi bi-rocket-takeoff me-2"></i>Start Predicting Now</a>
+</section>
+
+<footer>
+  <p>© 2024 CropYield AI — AI/ML Final Year Project | Built with Python Flask, Scikit-learn, XGBoost & MongoDB</p>
+  <p style="margin-top:4px;">Demo: <strong>admin / admin123</strong> &nbsp;|&nbsp; <strong>farmer / farmer123</strong></p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

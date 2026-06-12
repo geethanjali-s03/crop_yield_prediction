@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CropYield AI — UML Diagrams</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; padding: 32px; color: #111; }
+  h1 { color: #1a6b3c; font-size: 24px; margin-bottom: 8px; }
+  h2 { color: #1565c0; font-size: 16px; margin: 28px 0 10px; }
+  .diagram-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .mermaid { text-align: center; }
+</style>
+</head>
+<body>
+<h1>CropYield AI — UML & Sequence Diagrams</h1>
+
+<h2>1. Use Case Diagram</h2>
+<div class="diagram-box">
+<div class="mermaid">
+graph LR
+  subgraph Farmer["Farmer (User)"]
+    UC1([Register / Login])
+    UC2([Enter crop parameters])
+    UC3([View yield prediction])
+    UC4([View history])
+    UC5([Generate report])
+    UC6([Export CSV])
+  end
+
+  subgraph Admin["Admin"]
+    UC7([Manage users])
+    UC8([Monitor predictions])
+    UC9([View system logs])
+    UC10([Manage dataset])
+    UC11([Train ML models])
+    UC12([View analytics])
+  end
+
+  subgraph System["CropYield AI System"]
+    S1[Authenticate user]
+    S2[Preprocess input]
+    S3[ML prediction engine]
+    S4[EDA visualizations]
+    S5[MongoDB operations]
+    S6[Report generator]
+  end
+
+  UC1 --> S1
+  UC2 --> S2
+  UC3 --> S3
+  UC4 --> S5
+  UC5 --> S6
+  UC6 --> S6
+  UC7 --> S5
+  UC8 --> S5
+  UC9 --> S5
+  UC10 --> S5
+  UC11 --> S3
+  UC12 --> S4
+</div>
+</div>
+
+<h2>2. Sequence Diagram — Prediction Flow</h2>
+<div class="diagram-box">
+<div class="mermaid">
+sequenceDiagram
+  participant F as Farmer
+  participant W as Flask App
+  participant ML as ML Pipeline
+  participant DB as MongoDB
+
+  F->>W: POST /predict (form data)
+  W->>W: Validate session
+  W->>ML: predict_yield(input_data)
+  ML->>ML: Load best_model.pkl
+  ML->>ML: Label encode categorical cols
+  ML->>ML: StandardScaler.transform()
+  ML->>ML: model.predict()
+  ML-->>W: {yield_per_ha, total, confidence, model}
+  W->>DB: save_prediction(username, input, result)
+  DB-->>W: Saved OK
+  W->>DB: log_event('PREDICTION', ...)
+  W-->>F: Render predict.html with result
+</div>
+</div>
+
+<h2>3. Sequence Diagram — Model Training Flow</h2>
+<div class="diagram-box">
+<div class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant W as Flask App
+  participant DS as DatasetGenerator
+  participant ML as MLPipeline
+  participant DB as MongoDB
+  participant FS as FileSystem
+
+  U->>W: POST /train (n_samples=2000)
+  W->>DS: generate_crop_dataset(2000)
+  DS-->>W: DataFrame (2000×13)
+  W->>DB: store_dataset_sample(df.head(200))
+  W->>ML: train_models(df)
+  ML->>ML: Label encode + StandardScaler
+  ML->>ML: train_test_split(80/20)
+  loop For each algorithm
+    ML->>ML: model.fit(X_train)
+    ML->>ML: model.predict(X_test)
+    ML->>ML: Compute R², RMSE, MAE
+  end
+  ML->>ML: Select best model by R²
+  ML->>FS: joblib.dump(best_model.pkl)
+  ML->>FS: joblib.dump(scaler.pkl)
+  ML->>FS: joblib.dump(encoders.pkl)
+  ML->>FS: Write model_meta.json
+  ML-->>W: meta {best_model, results}
+  W->>DB: log_event('TRAIN', best_model)
+  W-->>U: Render train.html with results
+</div>
+</div>
+
+<h2>4. Activity Diagram — User Registration & Login</h2>
+<div class="diagram-box">
+<div class="mermaid">
+flowchart TD
+  A([Start]) --> B[User visits /register]
+  B --> C[Fill username, email, password]
+  C --> D{Username exists?}
+  D -- Yes --> E[Flash error message]
+  E --> C
+  D -- No --> F[Hash password with Werkzeug]
+  F --> G[Save to MongoDB users collection]
+  G --> H[Redirect to /login]
+  H --> I[Enter credentials]
+  I --> J{MongoDB available?}
+  J -- Yes --> K{Check hash match?}
+  J -- No --> L{Demo credentials?}
+  K -- No --> M[Flash invalid credentials]
+  M --> I
+  K -- Yes --> N[Set session username + role]
+  L -- Yes --> N
+  L -- No --> M
+  N --> O[Redirect to /dashboard]
+  O --> P([End])
+</div>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+</script>
+</body>
+</html>

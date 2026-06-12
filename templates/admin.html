@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+{% block page_title %}<i class="bi bi-shield-check me-2"></i>Admin Panel{% endblock %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-4" id="adminTabs">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#usersTab"><i class="bi bi-people me-1"></i>Users</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#statsTab"><i class="bi bi-bar-chart me-1"></i>Analytics</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#datasetTab"><i class="bi bi-database me-1"></i>Dataset Sample</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#logsTab"><i class="bi bi-terminal me-1"></i>System Logs</button></li>
+</ul>
+
+<div class="tab-content">
+  <!-- Users Tab -->
+  <div class="tab-pane fade show active" id="usersTab">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-people me-2"></i><span class="card-title">Registered Users</span> <span class="badge ms-1" style="background:#e8f5e9;color:#2e7d32;">{{ users|length }}</span></div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>#</th><th>Username</th><th>Email</th><th>Role</th><th>Mode</th><th>Language</th><th>Active</th><th>Created</th></tr></thead>
+          <tbody>
+          {% for u in users %}
+          <tr>
+            <td style="color:#9ca3af;font-size:12px;">{{ loop.index }}</td>
+            <td style="font-weight:500;">{{ u.username }}</td>
+            <td style="font-size:13px;color:#6b7280;">{{ u.email }}</td>
+            <td><span class="badge" style="background:{{ '#fff3e0' if u.role=='admin' else '#e8f5e9' }};color:{{ '#e65100' if u.role=='admin' else '#166534' }};">{{ u.role }}</span></td>
+            <td><span class="badge" style="background:#eef2ff;color:#3730a3;">{{ u.education_level or 'literate' }}</span></td>
+            <td style="font-size:12px;color:#6b7280;">{{ u.language or 'en' }}</td>
+            <td><span class="badge" style="background:#dcfce7;color:#166534;">Active</span></td>
+            <td style="font-size:12px;color:#9ca3af;">{{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">No users found (MongoDB not connected — demo mode)</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Tab -->
+  <div class="tab-pane fade" id="statsTab">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card"><div class="card-body text-center p-4">
+          <div style="font-size:40px;font-weight:700;color:#1a6b3c;">{{ stats.total or 0 }}</div>
+          <div style="color:#6b7280;">Total Predictions Made</div>
+        </div></div>
+      </div>
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Predictions by Crop</span></div>
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+              <thead><tr><th>Crop</th><th>Count</th><th>Avg Yield/ha</th></tr></thead>
+              <tbody>
+              {% for item in stats.by_crop %}
+              <tr>
+                <td><span class="badge" style="background:#e8f5e9;color:#166534;">{{ item._id or '—' }}</span></td>
+                <td>{{ item.count }}</td>
+                <td style="font-weight:500;color:#1a6b3c;">{{ "{:,.0f}".format(item.avg_yield) if item.avg_yield else '—' }} kg</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3" class="text-center text-muted">No data available</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dataset Tab -->
+  <div class="tab-pane fade" id="datasetTab">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-database me-2"></i><span class="card-title">MongoDB — crop_data collection (sample)</span></div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0" style="font-size:12.5px;">
+            <thead><tr><th>Crop</th><th>Season</th><th>Soil</th><th>Area(ha)</th><th>Rainfall(mm)</th><th>Temp(°C)</th><th>Humidity(%)</th><th>Fertilizer</th><th>Yield/ha</th></tr></thead>
+            <tbody>
+            {% for d in dataset %}
+            <tr>
+              <td><span class="badge" style="background:#e8f5e9;color:#166534;">{{ d.Crop }}</span></td>
+              <td>{{ d.Season }}</td><td>{{ d.Soil_Type }}</td>
+              <td>{{ d.Area }}</td><td>{{ d.Rainfall }}</td>
+              <td>{{ d.Temperature }}</td><td>{{ d.Humidity }}</td>
+              <td>{{ d.Fertilizer_Usage }}</td>
+              <td style="font-weight:600;color:#1a6b3c;">{{ "{:,.0f}".format(d.Yield_Per_Hectare) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="text-center text-muted py-4">No dataset in MongoDB — train models to populate</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logs Tab -->
+  <div class="tab-pane fade" id="logsTab">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-terminal me-2"></i><span class="card-title">System Event Logs</span></div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Type</th><th>Message</th><th>User</th><th>Timestamp</th></tr></thead>
+          <tbody>
+          {% for log in logs %}
+          <tr>
+            <td>
+              <span class="badge" style="background:{{ '#dcfce7' if log.type=='LOGIN' else '#dbeafe' if log.type=='PREDICT' else '#fef9c3' if log.type=='TRAIN' else '#f3f4f6' }};color:{{ '#166534' if log.type=='LOGIN' else '#1e40af' if log.type=='PREDICTION' else '#713f12' if log.type=='TRAIN' else '#374151' }};">
+                {{ log.type }}
+              </span>
+            </td>
+            <td style="font-size:13px;">{{ log.message }}</td>
+            <td style="font-size:12px;color:#6b7280;">{{ log.username or '—' }}</td>
+            <td style="font-size:12px;color:#9ca3af;">{{ log.timestamp.strftime('%d %b %Y %H:%M:%S') if log.timestamp else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No logs (MongoDB not connected)</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
